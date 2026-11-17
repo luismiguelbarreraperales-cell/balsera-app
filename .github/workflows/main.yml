@@ -1,0 +1,48 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Verificar que existe La_Balsera.html
+        run: test -f La_Balsera.html || (echo "Falta La_Balsera.html en la raíz del repo" && ls -la && exit 1)
+
+      - name: Crear proyecto Capacitor y copiar la app web
+        run: |
+          mkdir -p www
+          cp La_Balsera.html www/index.html
+          npm init -y
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          npx cap init "La Balsera" com.labalsera.app --web-dir=www
+          npx cap add android
+          npx cap sync android
+
+      - name: Compilar APK
+        working-directory: ./android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Renombrar APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk La_Balsera.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: La_Balsera-apk
+          path: La_Balsera.apk
